@@ -353,6 +353,194 @@
       ],
       "id": "filter-messages-only",
       "name": "Has Message?"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "I4n4IzrK95GWxHZy"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "wa_message_id": "={{ $json.messages[0].id }}",
+            "phone": "={{ $json.messages[0].from }}",
+            "wa_profile_name": "={{ $json.contacts?.[0]?.profile?.name || '' }}",
+            "direction": "in",
+            "actor": "customer",
+            "msg_type": "={{ $json.messages[0].type || 'text' }}",
+            "body": "={{ $json.messages[0].text?.body || $json.messages[0][$json.messages[0].type]?.caption || '' }}",
+            "media_id": "={{ $json.messages[0][$json.messages[0].type]?.id || '' }}",
+            "wa_timestamp": "={{ $json.messages[0].timestamp }}",
+            "raw": "={{ JSON.stringify($json) }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        -240
+      ],
+      "id": "loginb0001-0000-4aaa-bbbb-loginboundcall",
+      "name": "Log Inbound",
+      "notes": "Parallel branch off Has Message?, deliberately not in line before the AI Agent: an inserted node would replace $json and break both the AI Agent's {{ $json.messages[0].text.body }} and Simple Memory's session key.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "I4n4IzrK95GWxHZy"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "wa_message_id": "={{ $json.messages?.[0]?.id || '' }}",
+            "phone": "={{ $('Parse Lead Datat').item.json.phone }}",
+            "wa_profile_name": "={{ $('Parse Lead Datat').item.json.waName }}",
+            "direction": "out",
+            "actor": "ai",
+            "msg_type": "text",
+            "body": "={{ $('Parse Lead Datat').item.json.cleanReply }}\n",
+            "media_id": "",
+            "wa_timestamp": "={{ Math.floor(Date.now() / 1000) }}",
+            "raw": "={{ JSON.stringify($json) }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1424,
+        160
+      ],
+      "id": "logoutb001-0000-4aaa-bbbb-logoutreplycal",
+      "name": "Log Outbound (reply)",
+      "notes": "Runs on the Send message response, so wa_message_id is the wamid Meta returned and body is the text actually sent. Meta returns no timestamp on send, so the send time is used.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "I4n4IzrK95GWxHZy"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "wa_message_id": "={{ $json.messages?.[0]?.id || '' }}",
+            "phone": "={{ $('Generate Case Token').item.json.phone }}",
+            "wa_profile_name": "={{ $('Generate Case Token').item.json.waName }}",
+            "direction": "out",
+            "actor": "system",
+            "msg_type": "text",
+            "body": "={{ $('Generate Case Token').item.json.askMessage }}",
+            "media_id": "",
+            "wa_timestamp": "={{ Math.floor(Date.now() / 1000) }}",
+            "raw": "={{ JSON.stringify($json) }}"
+          }
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1856,
+        240
+      ],
+      "id": "logoutb002-0000-4aaa-bbbb-logoutcommitca",
+      "name": "Log Outbound (commitment)",
+      "notes": "The commitment ask is written by Generate Case Token, not by the AI, so actor is system.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "version": 3,
+        "resource": "row",
+        "operation": "getAll",
+        "workspaceId": "wwhn1cbz",
+        "projectId": "pkm6hqm4mh9vj0s",
+        "table": "macq4nsvibyrbm3",
+        "returnAll": false,
+        "limit": 1,
+        "downloadAttachments": false,
+        "options": {
+          "where": "=(phone,eq,{{ $('Generate Case Token').item.json.phone }})",
+          "sort": "-Id"
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        1856,
+        420
+      ],
+      "id": "findcvlead-0000-4aaa-bbbb-findconvforlea",
+      "name": "Find Conversation for Lead",
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "KiRKfHvdvcKwu1AQ",
+          "name": "NocoDB Token account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "No row means nothing was logged for this phone number, so the branch simply ends. alwaysOutputData stays off on purpose: an empty item would send an empty Id to the update."
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "version": 3,
+        "resource": "row",
+        "operation": "update",
+        "workspaceId": "wwhn1cbz",
+        "projectId": "pkm6hqm4mh9vj0s",
+        "table": "macq4nsvibyrbm3",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "Id",
+              "fieldValue": "={{ $json.Id }}"
+            },
+            {
+              "fieldName": "client_id",
+              "fieldValue": "={{ $('Create lead in NocoDB').item.json.Id }}"
+            },
+            {
+              "fieldName": "commitment_token",
+              "fieldValue": "={{ $('Generate Case Token').item.json.commitment_token }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        2076,
+        420
+      ],
+      "id": "linkcvlead-0000-4aaa-bbbb-linkconvtolead",
+      "name": "Link Conversation to Lead",
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "KiRKfHvdvcKwu1AQ",
+          "name": "NocoDB Token account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Ties the conversation to the lead it produced, so an operator can get from a Clients row to the transcript that created it."
     }
   ],
   "connections": {
@@ -425,6 +613,11 @@
             "node": "Send commitment ask",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Find Conversation for Lead",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -480,6 +673,11 @@
             "node": "AI Agent",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Log Inbound",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -490,6 +688,39 @@
           {
             "node": "AI Agent",
             "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message": {
+      "main": [
+        [
+          {
+            "node": "Log Outbound (reply)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send commitment ask": {
+      "main": [
+        [
+          {
+            "node": "Log Outbound (commitment)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Conversation for Lead": {
+      "main": [
+        [
+          {
+            "node": "Link Conversation to Lead",
+            "type": "main",
             "index": 0
           }
         ]
@@ -506,7 +737,8 @@
     "exportedAt": "2026-08-31",
     "sourceVersionId": "a44d8f83-5f4f-49ad-b74b-20b51fbb96e5",
     "draftMatchesPublished": true,
-    "note": "Read from n8n.ilotlegal.com via the public API. Production runs activeVersion, not the top-level draft nodes."
+    "note": "Read from n8n.ilotlegal.com via the public API. Production runs activeVersion, not the top-level draft nodes.",
+    "conversationHistory": "Logging nodes call Ilot - Log WA Message (sub). Every one is onError=continueRegularOutput: a logging failure must never break the customer conversation."
   },
   "versionId": "a44d8f83-5f4f-49ad-b74b-20b51fbb96e5"
 }

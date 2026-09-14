@@ -1,0 +1,605 @@
+{
+  "id": "I4n4IzrK95GWxHZy",
+  "name": "Ilot - Log WA Message (sub)",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "wa_message_id",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "type": "string"
+            },
+            {
+              "name": "wa_profile_name",
+              "type": "string"
+            },
+            {
+              "name": "direction",
+              "type": "string"
+            },
+            {
+              "name": "actor",
+              "type": "string"
+            },
+            {
+              "name": "msg_type",
+              "type": "string"
+            },
+            {
+              "name": "body",
+              "type": "string"
+            },
+            {
+              "name": "media_id",
+              "type": "string"
+            },
+            {
+              "name": "wa_timestamp",
+              "type": "string"
+            },
+            {
+              "name": "raw",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -220,
+        0
+      ],
+      "id": "logwatrig-0000-4aaa-bbbb-logwatriggernod",
+      "name": "When Called",
+      "notes": "Called by every WhatsApp send/receive point. direction is in|out, actor is customer|ai|system|human_agent."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Normalise the logging payload from every call site into one shape.\n//\n// The field that has to be right is wa_message_id: it is the dedup key that makes\n// a retried Meta webhook delivery harmless.\n\nconst input = $input.first().json;\nconst str = (v) => (v === undefined || v === null ? '' : String(v));\n\nconst direction = str(input.direction).toLowerCase() === 'out' ? 'out' : 'in';\nconst actor = str(input.actor) || (direction === 'in' ? 'customer' : 'ai');\n\n// Meta sends seconds since epoch. Outbound sends carry no timestamp of their own,\n// so the call site passes the send time instead.\nconst rawTimestamp = str(input.wa_timestamp);\nconst timestampSeconds = /^\\d+$/.test(rawTimestamp)\n  ? Number(rawTimestamp)\n  : Math.floor(Date.now() / 1000);\n\n// A send Meta never acknowledged still has to be recorded. Synthesise a key rather\n// than writing an empty one: empty keys would all collide with each other and the\n// dedup lookup would start discarding real messages.\nlet waMessageId = str(input.wa_message_id).trim();\nif (!waMessageId) {\n  waMessageId = `unacked-${direction}-${timestampSeconds}-${Math.random().toString(36).slice(2, 10)}`;\n}\n\nconst raw = typeof input.raw === 'string' ? input.raw : JSON.stringify(input.raw ?? null);\nconst MAX_RAW_CHARS = 8000;\n\nreturn [{\n  json: {\n    wa_message_id: waMessageId,\n    phone: str(input.phone).replace(/[^0-9]/g, ''),\n    wa_profile_name: str(input.wa_profile_name),\n    direction,\n    actor,\n    msg_type: str(input.msg_type) || 'text',\n    body: str(input.body),\n    media_id: str(input.media_id),\n    wa_timestamp: new Date(timestampSeconds * 1000).toISOString(),\n    logged_at: new Date().toISOString(),\n    raw: raw.length > MAX_RAW_CHARS ? `${raw.slice(0, MAX_RAW_CHARS)}...[truncated]` : raw,\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "lognorm01-0000-4aaa-bbbb-lognormalizenod",
+      "name": "Normalize Input"
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "version": 3,
+        "resource": "row",
+        "workspaceId": "wwhn1cbz",
+        "projectId": "pkm6hqm4mh9vj0s",
+        "operation": "getAll",
+        "table": "mqxhd8302g4z3ob",
+        "returnAll": false,
+        "limit": 1,
+        "downloadAttachments": false,
+        "options": {
+          "where": "=(wa_message_id,eq,{{ $json.wa_message_id }})"
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        220,
+        0
+      ],
+      "id": "logdedup01-0000-4aaa-bbbb-logdedupgetrow",
+      "name": "Already Logged?",
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "KiRKfHvdvcKwu1AQ",
+          "name": "NocoDB Token account"
+        }
+      },
+      "notes": "Idempotency: Meta retries a webhook delivery when n8n is slow to answer 200. alwaysOutputData=true so an empty result still emits one empty item, matching the processed_emails pattern in the Commitment Gate.",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "logisnew01-000",
+              "leftValue": "={{ $json.wa_message_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        440,
+        0
+      ],
+      "id": "logisnew01-0000-4aaa-bbbb-logisnewcheck0",
+      "name": "New Message?",
+      "notes": "TRUE = no row found (empty item from the lookup) -> log it. FALSE = already logged -> stop."
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "version": 3,
+        "resource": "row",
+        "workspaceId": "wwhn1cbz",
+        "projectId": "pkm6hqm4mh9vj0s",
+        "operation": "getAll",
+        "table": "macq4nsvibyrbm3",
+        "returnAll": true,
+        "downloadAttachments": false,
+        "options": {
+          "where": "=(phone,eq,{{ $('Normalize Input').first().json.phone }})"
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        660,
+        -100
+      ],
+      "id": "logfindcv1-0000-4aaa-bbbb-logfindconvers",
+      "name": "Find Open Conversation",
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "KiRKfHvdvcKwu1AQ",
+          "name": "NocoDB Token account"
+        }
+      },
+      "notes": "Every conversation for this phone number. Resolve Session picks the newest. Do not add a sort + limit 1 here: the node's sort option is not applied, so limit 1 returns the OLDEST row and every message gets pinned to the first conversation ever opened for that number.",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Decide whether this message continues the newest conversation for this phone\n// number or starts a new one.\n//\n// SESSION_IDLE_MINUTES is an operational grouping boundary and nothing else: it\n// decides where one transcript ends and the next begins. Nothing outside this node\n// reads it, no downstream logic assumes a particular value, and changing it only\n// changes how future messages are grouped. Do not build business rules on it.\nconst SESSION_IDLE_MINUTES = 24 * 60;\n\nconst message = $('Normalize Input').first().json;\n\n// Find Open Conversation returns every conversation for this phone number and the\n// newest is the only candidate. Picking it here rather than with the node's sort\n// option is deliberate: that option is not applied, so a sort plus limit 1 hands\n// back the OLDEST row and pins every message to the first conversation ever opened\n// for the number.\nconst rows = $input.all()\n  .map((item) => item.json)\n  .filter((row) => row && (row.Id ?? row.id) != null);\n\nlet newest = null;\nfor (const row of rows) {\n  if (!newest || Number(row.Id ?? row.id) > Number(newest.Id ?? newest.id)) newest = row;\n}\n\nlet reuse = false;\nif (newest) {\n  const lastSeen = Date.parse(newest.last_message_at || newest.started_at || '');\n  const idleMinutes = Number.isNaN(lastSeen) ? Infinity : (Date.now() - lastSeen) / 60000;\n  reuse = idleMinutes < SESSION_IDLE_MINUTES;\n}\n\nif (reuse) {\n  return [{ json: { ...newest, Id: newest.Id ?? newest.id, needs_new_conversation: false } }];\n}\n\nreturn [{\n  json: {\n    needs_new_conversation: true,\n    phone: message.phone,\n    wa_profile_name: message.wa_profile_name,\n    started_at: message.wa_timestamp,\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "id": "logresolve1-0000-4aaa-bbbb-logresolvesess",
+      "name": "Resolve Session"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "logneednew1-00",
+              "leftValue": "={{ $json.needs_new_conversation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1100,
+        -100
+      ],
+      "id": "logneednew1-0000-4aaa-bbbb-logneednewconv",
+      "name": "Need New Conversation?",
+      "notes": "TRUE = open a new conversation. FALSE = the item already is the conversation row to reuse. The operator must be boolean/true: needs_new_conversation is a boolean, and a string 'notEmpty' test reads false as the non-empty text 'false', which sends every message down the create branch."
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "version": 3,
+        "resource": "row",
+        "workspaceId": "wwhn1cbz",
+        "projectId": "pkm6hqm4mh9vj0s",
+        "operation": "create",
+        "table": "macq4nsvibyrbm3",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "phone",
+              "fieldValue": "={{ $('Normalize Input').first().json.phone }}"
+            },
+            {
+              "fieldName": "wa_profile_name",
+              "fieldValue": "={{ $('Normalize Input').first().json.wa_profile_name }}"
+            },
+            {
+              "fieldName": "started_at",
+              "fieldValue": "={{ $('Normalize Input').first().json.wa_timestamp }}"
+            },
+            {
+              "fieldName": "last_message_at",
+              "fieldValue": "={{ $('Normalize Input').first().json.wa_timestamp }}"
+            },
+            {
+              "fieldName": "message_count",
+              "fieldValue": "=0"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        1320,
+        -200
+      ],
+      "id": "logcreatecv-0000-4aaa-bbbb-logcreateconve",
+      "name": "Create Conversation",
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "KiRKfHvdvcKwu1AQ",
+          "name": "NocoDB Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Convergence point for both branches \u2014 conversation reused, or just created.\n// Everything downstream reaches back to this node, so it must always run and must\n// always carry the resolved conversation id.\n\nconst message = $('Normalize Input').first().json;\nconst conversation = $input.first().json || {};\nconst conversationId = conversation.Id ?? conversation.id ?? null;\n\nif (!conversationId) {\n  // Writing the message anyway would produce a row that belongs to no conversation\n  // and would never appear in any transcript. Fail loudly instead.\n  throw new Error('No conversation id resolved - refusing to write an orphan message row');\n}\n\nreturn [{ json: { ...message, conversation_id: String(conversationId) } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -100
+      ],
+      "id": "logprepare1-0000-4aaa-bbbb-logpreparerow",
+      "name": "Prepare Message Row"
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "version": 3,
+        "resource": "row",
+        "workspaceId": "wwhn1cbz",
+        "projectId": "pkm6hqm4mh9vj0s",
+        "operation": "create",
+        "table": "mqxhd8302g4z3ob",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "conversation_id",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.conversation_id }}"
+            },
+            {
+              "fieldName": "phone",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.phone }}"
+            },
+            {
+              "fieldName": "wa_message_id",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.wa_message_id }}"
+            },
+            {
+              "fieldName": "direction",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.direction }}"
+            },
+            {
+              "fieldName": "actor",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.actor }}"
+            },
+            {
+              "fieldName": "msg_type",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.msg_type }}"
+            },
+            {
+              "fieldName": "body",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.body }}"
+            },
+            {
+              "fieldName": "media_id",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.media_id }}"
+            },
+            {
+              "fieldName": "wa_timestamp",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.wa_timestamp }}"
+            },
+            {
+              "fieldName": "logged_at",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.logged_at }}"
+            },
+            {
+              "fieldName": "raw",
+              "fieldValue": "={{ $('Prepare Message Row').item.json.raw }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        1760,
+        -100
+      ],
+      "id": "loginsert01-0000-4aaa-bbbb-loginsertmsgro",
+      "name": "Insert Message",
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "KiRKfHvdvcKwu1AQ",
+          "name": "NocoDB Token account"
+        }
+      },
+      "notes": "Append-only. This table is the source of truth; the transcript on the conversation is derived from it."
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "version": 3,
+        "resource": "row",
+        "workspaceId": "wwhn1cbz",
+        "projectId": "pkm6hqm4mh9vj0s",
+        "operation": "getAll",
+        "table": "mqxhd8302g4z3ob",
+        "returnAll": true,
+        "downloadAttachments": false,
+        "options": {
+          "where": "=(conversation_id,eq,{{ $('Prepare Message Row').item.json.conversation_id }})",
+          "sort": "Id"
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        1980,
+        -100
+      ],
+      "id": "logfetchms1-0000-4aaa-bbbb-logfetchmsgses",
+      "name": "Fetch Session Messages",
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "KiRKfHvdvcKwu1AQ",
+          "name": "NocoDB Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Rebuild the transcript from the message rows.\n//\n// This is a projection, not an accumulator. It is rewritten in full on every turn,\n// so a lost or out-of-order update heals on the next message instead of leaving a\n// permanent hole. Never change this to append.\n\nconst MAX_LINES = 100;\nconst ACTOR_LABELS = { customer: 'Client', ai: 'Bot', system: 'System', human_agent: 'Agent' };\n\nconst prepared = $('Prepare Message Row').first().json;\nconst rows = $input.all()\n  .map((item) => item.json)\n  .filter((row) => row && row.wa_message_id);\n\nrows.sort((a, b) => {\n  const ta = Date.parse(a.wa_timestamp) || 0;\n  const tb = Date.parse(b.wa_timestamp) || 0;\n  // Meta timestamps are second-granular, so a reply can share a second with the\n  // message it answers. Id breaks the tie because rows are inserted in turn order.\n  return ta !== tb ? ta - tb : Number(a.Id || 0) - Number(b.Id || 0);\n});\n\nconst shown = rows.length > MAX_LINES ? rows.slice(-MAX_LINES) : rows;\nconst header = rows.length > MAX_LINES\n  ? `[... ${rows.length - MAX_LINES} earlier messages omitted - full record in the Messages table ...]\\n\\n`\n  : '';\n\nconst lines = shown.map((row) => {\n  const when = String(row.wa_timestamp || '').replace('T', ' ').slice(0, 16);\n  const who = (ACTOR_LABELS[row.actor] || row.actor || 'Unknown').padEnd(6, ' ');\n  const body = String(row.body || '').trim();\n  const text = body || `<${row.msg_type || 'unknown'}${row.media_id ? ` ${row.media_id}` : ''}>`;\n  return `[${when}] ${who}: ${text}`;\n});\n\nconst newest = rows[rows.length - 1] || {};\n\nreturn [{\n  json: {\n    conversation_id: prepared.conversation_id,\n    transcript: header + lines.join('\\n'),\n    message_count: rows.length,\n    last_message_at: newest.wa_timestamp || prepared.wa_timestamp,\n  },\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -100
+      ],
+      "id": "logrender01-0000-4aaa-bbbb-logrendertrans",
+      "name": "Render Transcript"
+    },
+    {
+      "parameters": {
+        "authentication": "nocoDbApiToken",
+        "version": 3,
+        "resource": "row",
+        "workspaceId": "wwhn1cbz",
+        "projectId": "pkm6hqm4mh9vj0s",
+        "operation": "update",
+        "table": "macq4nsvibyrbm3",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldName": "Id",
+              "fieldValue": "={{ $json.conversation_id }}"
+            },
+            {
+              "fieldName": "transcript",
+              "fieldValue": "={{ $json.transcript }}"
+            },
+            {
+              "fieldName": "message_count",
+              "fieldValue": "={{ $json.message_count }}"
+            },
+            {
+              "fieldName": "last_message_at",
+              "fieldValue": "={{ $json.last_message_at }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.nocoDb",
+      "typeVersion": 3,
+      "position": [
+        2420,
+        -100
+      ],
+      "id": "logupdcv001-0000-4aaa-bbbb-logupdateconve",
+      "name": "Update Conversation",
+      "credentials": {
+        "nocoDbApiToken": {
+          "id": "KiRKfHvdvcKwu1AQ",
+          "name": "NocoDB Token account"
+        }
+      },
+      "notes": "Full rewrite of the transcript, never an append. A lost update is corrected by the next message."
+    }
+  ],
+  "connections": {
+    "When Called": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Already Logged?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Logged?": {
+      "main": [
+        [
+          {
+            "node": "New Message?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Message?": {
+      "main": [
+        [
+          {
+            "node": "Find Open Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Find Open Conversation": {
+      "main": [
+        [
+          {
+            "node": "Resolve Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Session": {
+      "main": [
+        [
+          {
+            "node": "Need New Conversation?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Need New Conversation?": {
+      "main": [
+        [
+          {
+            "node": "Create Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Message Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Conversation": {
+      "main": [
+        [
+          {
+            "node": "Prepare Message Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Message Row": {
+      "main": [
+        [
+          {
+            "node": "Insert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Message": {
+      "main": [
+        [
+          {
+            "node": "Fetch Session Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Session Messages": {
+      "main": [
+        [
+          {
+            "node": "Render Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Transcript": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "note": "Conversation history logger. Messages is the source of truth; Conversations.transcript is a read model rebuilt from it on every turn. Table ids are placeholders until the production tables exist - see scripts/create-conversation-tables.mjs."
+  }
+}
