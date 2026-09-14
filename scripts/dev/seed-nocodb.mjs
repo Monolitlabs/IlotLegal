@@ -176,6 +176,56 @@ const TABLES = [
       { Question: 'Draft answer, not yet published', Answer: 'This row is inactive and must not be indexed.', Department: 'general', Active: false },
     ],
   },
+  {
+    // Columns are what the "Ilot - Log WA Message (sub)" workflow writes;
+    // one row per logical WhatsApp conversation; the transcript column is a
+    // rendered read model regenerated from the Messages table, never appended to.
+    title: 'Conversations',
+    columns: [
+      ID_COLUMN,
+      text('phone'),
+      text('wa_profile_name'),
+      text('started_at'),
+      text('last_message_at'),
+      number('message_count'),
+      longText('transcript'),
+      text('client_id'),
+      text('commitment_token'),
+    ],
+    rows: [
+      {
+        phone: '6281299990001',
+        wa_profile_name: 'Sample Existing Lead',
+        started_at: new Date().toISOString(),
+        last_message_at: new Date().toISOString(),
+        message_count: 0,
+        transcript: '',
+      },
+    ],
+  },
+  {
+    // Append-only source of truth for WhatsApp conversation history;
+    // wa_message_id is the dedup key for retried Meta webhook deliveries.
+    // Production carries a unique constraint on it that NocoDB's meta API
+    // cannot create here, so duplicates are accepted locally where production
+    // rejects them. Do not use this stack to prove dedup.
+    title: 'Messages',
+    columns: [
+      ID_COLUMN,
+      text('conversation_id'),
+      text('phone'),
+      text('wa_message_id'),
+      text('direction'),
+      text('actor'),
+      text('msg_type'),
+      longText('body'),
+      text('media_id'),
+      text('wa_timestamp'),
+      text('logged_at'),
+      longText('raw'),
+    ],
+    rows: [],
+  },
 ]
 
 async function main() {
@@ -213,12 +263,14 @@ async function main() {
     created[spec.title] = table.id
     console.log(`  created table ${spec.title} (${table.id})`)
 
-    await call(`/api/v2/tables/${table.id}/records`, {
-      method: 'POST',
-      token,
-      body: spec.rows,
-    })
-    console.log(`    inserted ${spec.rows.length} sample row(s)`)
+    if (spec.rows.length > 0) {
+      await call(`/api/v2/tables/${table.id}/records`, {
+        method: 'POST',
+        token,
+        body: spec.rows,
+      })
+      console.log(`    inserted ${spec.rows.length} sample row(s)`)
+    }
   }
 
   const apiToken = await call('/api/v1/tokens', {
@@ -239,7 +291,7 @@ ${'='.repeat(70)}
 
   Table IDs:`)
   for (const [name, id] of Object.entries(created)) {
-    console.log(`    ${name.padEnd(8)} ${id}`)
+    console.log(`    ${name.padEnd(16)} ${id}`)
   }
   console.log(`
   In n8n, create a "NocoDB API Token" credential with:

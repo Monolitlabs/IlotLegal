@@ -73,7 +73,8 @@ This unsets null object fields and fixes slug conflicts on soft-disabled orphan 
 
 ## Docs layout
 - `docs/` — current. `design.md`, `deploy-coolify.md`, `human-agent-handoff.md`,
-  `whatsapp-cutover-status.md`, `commitment-gate-flow.md`, `client/editing-content.md`.
+  `whatsapp-cutover-status.md`, `commitment-gate-flow.md`, `conversation-history.md`,
+  `client/editing-content.md`.
 - `docs/archive/` — historical only. Superseded runbooks, landed phase plans, the client
   proposal, and `chatwoot-evaluation.md` (evaluated, worked, not adopted — its Meta and
   Chatwoot findings are still accurate and worth reading). Do not treat anything in there as
