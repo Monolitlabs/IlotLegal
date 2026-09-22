@@ -9,11 +9,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "import:sanity": "tsx --env-file=.env.local scripts/import-to-sanity.ts",
-    "import:sanity:dry": "tsx --env-file=.env.local scripts/import-to-sanity.ts --dry-run",
-    "cleanup:sanity": "tsx --env-file=.env.local scripts/cleanup-sanity.ts",
-    "cleanup:sanity:dry": "tsx --env-file=.env.local scripts/cleanup-sanity.ts --dry-run",
-    "fix:sanity": "tsx --env-file=.env.local scripts/fix-sanity-nulls.ts"
+    "import:sanity": "tsx --env-file=.env scripts/import-to-sanity.ts",
+    "import:sanity:dry": "tsx --env-file=.env scripts/import-to-sanity.ts --dry-run",
+    "cleanup:sanity": "tsx --env-file=.env scripts/cleanup-sanity.ts",
+    "cleanup:sanity:dry": "tsx --env-file=.env scripts/cleanup-sanity.ts --dry-run",
+    "fix:sanity": "tsx --env-file=.env scripts/fix-sanity-nulls.ts"
   },
   "dependencies": {
     "@portabletext/react": "^6.0.3",

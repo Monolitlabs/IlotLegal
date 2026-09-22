@@ -50,6 +50,30 @@ export const post = defineType({
       validation: (r) => r.required(),
     }),
     defineField({
+      name: 'relatedServices',
+      title: 'Related Services',
+      type: 'array',
+      of: [
+        {
+          type: 'reference',
+          to: [{ type: 'service' }],
+          options: {
+            // Use a GROQ filter so the picker queries directly instead of
+            // relying on the full-text search index (which lags after bulk import).
+            filter: ({ searchQuery }: { searchQuery: string }) => ({
+              filter: searchQuery
+                ? 'isActive == true && name.en match $q'
+                : 'isActive == true',
+              params: searchQuery ? { q: `*${searchQuery}*` } : {},
+            }),
+          },
+        },
+      ],
+      validation: (r) => r.max(4).unique(),
+      description:
+        "Optional. Hand-pick up to 4 services to show in this article's sidebar, in this order. Services from any category are allowed. Leave empty to automatically show the top services from the post's own category.",
+    }),
+    defineField({
       name: 'author',
       title: 'Author',
       type: 'reference',

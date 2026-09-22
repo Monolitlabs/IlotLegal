@@ -159,6 +159,7 @@ export default async function PostPage({ params }: Props) {
                 <RelatedServices
                   services={post.related_services}
                   categoryName={post.category_name}
+                  isCurated={post.has_curated_services}
                 />
               </aside>
             </div>

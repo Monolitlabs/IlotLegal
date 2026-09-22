@@ -11,9 +11,11 @@ interface RelatedService {
 interface Props {
   services: RelatedService[]
   categoryName: string
+  /** Editor hand-picked these services — they may cross categories, so drop the category wording. */
+  isCurated?: boolean
 }
 
-export function RelatedServices({ services, categoryName }: Props) {
+export function RelatedServices({ services, categoryName, isCurated }: Props) {
   if (!services.length) return null
 
   return (
@@ -22,7 +24,7 @@ export function RelatedServices({ services, categoryName }: Props) {
         Related Services
       </h3>
       <p className="text-sm text-muted mb-6">
-        Expert {categoryName} services from Ilot
+        {isCurated ? 'Services from Ilot' : `Expert ${categoryName} services from Ilot`}
       </p>
       <ul className="flex flex-col gap-4">
         {services.map((svc) => (

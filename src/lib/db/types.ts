@@ -91,6 +91,8 @@ export interface PostWithDetails extends Post {
   body_id: unknown[] | null   // Portable Text blocks — ID
   meta_title: string | null
   meta_description: string | null
+  /** True when an editor hand-picked the services below, rather than the category fallback. */
+  has_curated_services: boolean
   related_services: Array<{
     slug: string
     name: string

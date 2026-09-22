@@ -11,6 +11,24 @@ Log in with the email address you were invited with. If you lose access, ask the
 - **Categories** (Visa & Immigration, Legal, etc.) — name, tagline, icon, accent colour, cover image, sort order
 - **Sub-Categories** (Investor KITAS, Visit Visas, etc.) — name, parent category, sort order
 - **Services** (the individual offerings) — name, description, target client, key deliverables, timeline, real-time work, WhatsApp message, SEO fields
+- **Blog Posts** — title, excerpt, cover image, body, category, author, and **Related Services**
+
+### Related Services on a blog post
+
+Every blog post shows a "Related Services" box in the sidebar. By default this fills itself
+automatically with the top services from the post's own category, so you never *have* to
+touch it.
+
+Use the **Related Services** field when the automatic pick is a poor match for what the
+article is actually about. You can:
+
+- Hand-pick up to **4** services
+- Choose services from **any** category — a visa article can point at a tax or legal service
+- **Drag to reorder** them; the sidebar shows them in exactly the order you set
+
+Leave the field empty to keep the automatic behaviour. If you add services and later remove
+them all, it goes back to automatic. A service that is switched off (unchecked **Active**)
+is skipped automatically, so the box never links to something unavailable.
 
 ## Editing workflow
 

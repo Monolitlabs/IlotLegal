@@ -243,16 +243,28 @@ export const postBySlugQuery = groq`
     "body_id": body.id,
     "meta_title": coalesce(seo.metaTitle.en, null),
     "meta_description": coalesce(seo.metaDescription.en, null),
-    "related_services": *[
-      _type == "service" &&
-      category._ref == ^.category._ref &&
-      isActive == true
-    ] | order(sortOrder asc) [0..2] {
-      "slug": slug.current,
-      "name": coalesce(name.en, ""),
-      "description": coalesce(description.en, null),
-      "category_slug": category->slug.current
-    }
+    "has_curated_services": coalesce(count(relatedServices) > 0, false),
+    "related_services": select(
+      // Manual picks win. Filter on the referenced doc via @-> so that editor
+      // drag order survives — dereferencing first and filtering after loses it.
+      // count() rather than coalesce(): an emptied array leaves [], not null.
+      count(relatedServices) > 0 => relatedServices[@->isActive == true]->{
+        "slug": slug.current,
+        "name": coalesce(name.en, ""),
+        "description": coalesce(description.en, null),
+        "category_slug": category->slug.current
+      },
+      *[
+        _type == "service" &&
+        category._ref == ^.category._ref &&
+        isActive == true
+      ] | order(sortOrder asc) [0..2] {
+        "slug": slug.current,
+        "name": coalesce(name.en, ""),
+        "description": coalesce(description.en, null),
+        "category_slug": category->slug.current
+      }
+    )
   }
 `
 
