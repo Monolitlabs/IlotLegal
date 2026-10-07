@@ -24,7 +24,7 @@ const SOCIALS = [
 ]
 
 const OFFICES = [
-  'Jl. Subak Sari, Gg Sri Khayangan Tibuneneng, Canggu 80361 Bali',
+  'Jl. Petitenget No.882 X, Kerobokan, Kabupaten Badung, Bali 80361',
 ]
 
 export function Footer() {

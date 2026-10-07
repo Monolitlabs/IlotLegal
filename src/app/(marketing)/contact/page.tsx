@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 }
 
 const CONTACT_EMAIL = 'hello@ilotlegal.com'
-const OFFICE_ADDRESS = 'Jl. Subak Sari, Gg Sri Khayangan Tibuneneng, Canggu 80361 Bali'
+const OFFICE_ADDRESS = 'Jl. Petitenget No.882 X, Kerobokan, Kabupaten Badung, Bali 80361'
 // Official Google Maps listing (share link from the client) — opens the Maps app on mobile.
 const OFFICE_MAPS_LINK = 'https://maps.app.goo.gl/G2B184m9pJCWUZRT6'
 // Embed pinned to the exact business listing (not a street-address geocode),
