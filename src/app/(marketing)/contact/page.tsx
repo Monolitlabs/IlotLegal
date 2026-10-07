@@ -12,11 +12,12 @@ export const metadata: Metadata = {
 const CONTACT_EMAIL = 'hello@ilotlegal.com'
 const OFFICE_ADDRESS = 'Jl. Petitenget No.882 X, Kerobokan, Kabupaten Badung, Bali 80361'
 // Official Google Maps listing (share link from the client) — opens the Maps app on mobile.
-const OFFICE_MAPS_LINK = 'https://maps.app.goo.gl/G2B184m9pJCWUZRT6'
-// Embed pinned to the exact business listing (not a street-address geocode),
-// so only the office is marked on the map.
-const OFFICE_PLACE_QUERY = 'ILOT PROPERTY BALI - Head Office, Gg. Sri Kahyangan, Tibubeneng'
-const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(OFFICE_PLACE_QUERY)}&output=embed`
+const OFFICE_MAPS_LINK = 'https://maps.app.goo.gl/fah4nNAo24CaohqH9'
+// The office isn't a Google business listing, so the embed can't carry our name —
+// pin the exact coordinates and overlay the label ourselves (see the map card below).
+const OFFICE_NAME = 'ILOT LEGAL - Head Office'
+const OFFICE_COORDS = '-8.6789351,115.1536434'
+const MAP_EMBED_SRC = `https://www.google.com/maps?q=${OFFICE_COORDS}&z=18&output=embed`
 
 const CHANNELS = [
   {
@@ -105,21 +106,40 @@ export default function ContactPage() {
         <RevealGroup className="mt-16 md:mt-24">
           <RevealItem>
             <h2 className="mb-2 text-2xl font-bold tracking-tight md:text-3xl">
-              Find us in Canggu
+              Find us in Kerobokan
             </h2>
             <p className="mb-8 text-muted">{OFFICE_ADDRESS}</p>
           </RevealItem>
           <RevealItem>
-            <div className="overflow-hidden rounded-card border border-black/10 bg-surface">
+            <div className="relative h-[320px] overflow-hidden rounded-card border border-black/10 bg-surface md:h-[440px]">
+              {/* Shifted up so Google's own "Open in Maps" link (top-left, inside the
+                  cross-origin iframe) is cropped out. Bottom attribution stays visible;
+                  the label card below sits over Google's satellite toggle. */}
               <iframe
                 src={MAP_EMBED_SRC}
-                title={`Map showing the Ilot office at ${OFFICE_ADDRESS}`}
-                className="h-[320px] w-full md:h-[440px]"
+                title={`Map showing ${OFFICE_NAME} at ${OFFICE_ADDRESS}`}
+                className="absolute inset-x-0 -top-14 h-[calc(100%+3.5rem)] w-full"
                 style={{ border: 0 }}
                 loading="lazy"
                 allowFullScreen
                 referrerPolicy="no-referrer-when-downgrade"
               />
+              <a
+                href={OFFICE_MAPS_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute bottom-1 left-1 right-1 flex items-start gap-3 rounded-2xl rounded-b-[calc(var(--radius-card)-0.25rem)] bg-white p-3 shadow-lg ring-1 ring-black/10 sm:right-auto sm:max-w-sm sm:rounded-br-2xl sm:p-4"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15">
+                  <MapPin className="h-4 w-4 text-foreground" strokeWidth={1.75} aria-hidden="true" />
+                </span>
+                <span>
+                  <span className="block text-sm font-semibold text-foreground">{OFFICE_NAME}</span>
+                  <span className="block text-xs leading-relaxed text-muted">
+                    Open in Google Maps
+                  </span>
+                </span>
+              </a>
             </div>
           </RevealItem>
         </RevealGroup>
