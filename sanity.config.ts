@@ -5,6 +5,7 @@ import { googleAnalyticsPlugin } from 'sanity-plugin-analytics'
 import { schemaTypes } from './src/sanity/schemas'
 import { structure } from './src/sanity/structure'
 import { analyticsAuth } from './src/sanity/plugins/analyticsAuth'
+import { articleAnalytics } from './src/sanity/plugins/articleAnalytics'
 import { apiVersion, dataset, projectId } from './src/sanity/env'
 
 export default defineConfig({
@@ -21,6 +22,7 @@ export default defineConfig({
     visionTool({ defaultApiVersion: apiVersion }),
     googleAnalyticsPlugin({ siteTitle: 'Ilot Legal' }),
     analyticsAuth(),
+    articleAnalytics(),
   ],
   schema: { types: schemaTypes },
 })

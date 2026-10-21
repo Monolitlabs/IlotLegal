@@ -8,6 +8,7 @@ import { AuthorByline } from '@/components/blog/AuthorByline'
 import { RelatedServices } from '@/components/blog/RelatedServices'
 import { ShareButton } from '@/components/blog/ShareButton'
 import { estimateReadingTime } from '@/lib/reading-time'
+import { getPostViews } from '@/lib/analytics/postViews'
 
 export const revalidate = 60
 
@@ -59,6 +60,7 @@ export default async function PostPage({ params }: Props) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ilotlegal.com'
   const readingTime = estimateReadingTime(post.body_en as Parameters<typeof estimateReadingTime>[0])
+  const views = await getPostViews(post.slug)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -120,6 +122,14 @@ export default async function PostPage({ params }: Props) {
                 <time dateTime={post.published_at}>{formatDate(post.published_at)}</time>
                 <span>·</span>
                 <span>{readingTime} min read</span>
+                {views !== null && (
+                  <>
+                    <span>·</span>
+                    <span>
+                      {views.toLocaleString('en-US')} {views === 1 ? 'view' : 'views'}
+                    </span>
+                  </>
+                )}
                 <span>·</span>
                 <ShareButton
                   title={post.title}

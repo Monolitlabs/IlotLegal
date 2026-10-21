@@ -104,6 +104,9 @@ three vars below, the tab shows an error and the rest of the site is unaffected.
 | `GA_SERVICE_ACCOUNT_EMAIL` | `client_email` from the JSON key | Server-only runtime |
 | `GA_PRIVATE_KEY` | `private_key` from the JSON key, as-is on one line with `\n` | Server-only runtime |
 
+The same three vars feed the **Articles** tool in `/studio` (views per blog
+article, via `/api/analytics/articles`, same auth and cache).
+
 Untick "Is Build Variable?" for all three — they must never reach the bundle.
 Responses are cached per date range for 10 minutes, so new data can lag that
 much. Editors log in to the Studio once more after this ships (the Studio
