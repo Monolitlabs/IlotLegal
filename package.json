@@ -28,6 +28,7 @@
     "react-dom": "19.2.3",
     "resend": "^6.12.4",
     "sanity": "^5.22.0",
+    "sanity-plugin-analytics": "0.2.0",
     "server-only": "^0.0.1",
     "styled-components": "^6.4.1"
   },

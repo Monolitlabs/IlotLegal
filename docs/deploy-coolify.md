@@ -83,6 +83,32 @@ must be available during `next build`.
 
 Docs: <https://coolify.io/docs/knowledge-base/environment-variables>
 
+### 3a. Google Analytics in the Studio (optional)
+
+The **Analytics** tab in `/studio` (`sanity-plugin-analytics`, GA4 only) reads
+GA through `/api/analytics`. That route only answers logged-in Studio users —
+it checks the caller's Sanity token against our private dataset. Without the
+three vars below, the tab shows an error and the rest of the site is unaffected.
+
+1. Google Cloud Console → pick/create a project → **APIs & Services → Library**
+   → enable **Google Analytics Data API**.
+2. **IAM & Admin → Service Accounts → Create**. No roles needed. Open it →
+   **Keys → Add key → JSON** and download the file.
+3. GA4 → **Admin → Property access management → +** → add the service
+   account's `client_email` as **Viewer**.
+4. GA4 → **Admin → Property details** → copy the numeric **Property ID**.
+
+| Key | Value | Scope |
+|---|---|---|
+| `GA_PROPERTY_ID` | numeric property ID (e.g. `123456789`) | Server-only runtime |
+| `GA_SERVICE_ACCOUNT_EMAIL` | `client_email` from the JSON key | Server-only runtime |
+| `GA_PRIVATE_KEY` | `private_key` from the JSON key, as-is on one line with `\n` | Server-only runtime |
+
+Untick "Is Build Variable?" for all three — they must never reach the bundle.
+Responses are cached per date range for 10 minutes, so new data can lag that
+much. Editors log in to the Studio once more after this ships (the Studio
+switched to token login so it can authenticate to the route).
+
 ---
 
 ## 4. Persistent Storage tab — the one thing easy to forget
